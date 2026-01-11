@@ -154,7 +154,7 @@ class TestConvenienceMethods:
         
         assert result is True
         headers = mock_post.call_args[1]["headers"]
-        assert "Success" in headers["Title"]
+        assert headers["Title"] == "DCA Success"
         assert headers["Priority"] == "default"
         assert "white_check_mark" in headers["Tags"]
     
@@ -169,7 +169,7 @@ class TestConvenienceMethods:
         
         assert result is True
         headers = mock_post.call_args[1]["headers"]
-        assert "Error" in headers["Title"]
+        assert headers["Title"] == "DCA Error"
         assert headers["Priority"] == "high"
         assert "warning" in headers["Tags"]
     
@@ -184,7 +184,7 @@ class TestConvenienceMethods:
         
         assert result is True
         headers = mock_post.call_args[1]["headers"]
-        assert "Info" in headers["Title"]
+        assert headers["Title"] == "DCA Info"
         assert headers["Priority"] == "default"
         assert "information_source" in headers["Tags"]
 

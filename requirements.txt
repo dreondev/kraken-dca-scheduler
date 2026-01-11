@@ -1,0 +1,14 @@
+# Kraken API
+krakenex==2.2.2
+
+# Config
+PyYAML==6.0.1
+
+# HTTP Requests (für ntfy später)
+requests==2.31.0
+
+# Timezone Support
+tzdata==2024.1
+
+# Optional: Telegram
+python-telegram-bot==20.8
