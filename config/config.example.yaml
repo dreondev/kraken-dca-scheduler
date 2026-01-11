@@ -1,0 +1,61 @@
+# Kraken DCA Scheduler - Configuration Example
+#
+# Copy this file to config.yaml and fill in your values
+# DO NOT commit config.yaml with your API keys!
+
+general:
+  # Timezone for logging and timestamps
+  timezone: "Europe/Berlin"
+  
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: "INFO"
+
+kraken:
+  # Kraken API credentials
+  # RECOMMENDED: Use environment variables for security
+  # Example: api_key: "${KRAKEN_API_KEY}"
+  api_key: "your_kraken_api_key_here"
+  api_secret: "your_kraken_api_secret_here"
+  
+  # Trading pair (default: Bitcoin/Euro)
+  pair: "XXBTZEUR"
+
+trade:
+  # Amount in EUR to invest per execution
+  amount_eur: 20.0
+  
+  # Discount percentage below Ask price for limit order
+  # Example: 0.5 means 0.5% below market Ask price
+  discount_percent: 0.5
+  
+  # Validate order before placing (dry-run mode)
+  # Set to false for actual trading
+  validate_order: true
+  
+  # Minimum EUR balance to keep (optional, default: 0)
+  min_free_balance: 5.0
+
+# LEGACY: Telegram configuration (for backward compatibility)
+# This will be used if 'notifications' section is not present
+telegram:
+  # Telegram Bot Token (get from @BotFather)
+  bot_token: "your_telegram_bot_token"
+  
+  # Telegram Chat ID (your personal chat ID)
+  chat_id: "your_telegram_chat_id"
+
+# NEW: Unified notifications configuration
+# notifications:
+#   enabled: true
+#   provider: "ntfy"  # "telegram" or "ntfy"
+#   
+#   # ntfy.sh configuration
+#   ntfy:
+#     server: "https://ntfy.sh"
+#     topic: "kraken-dca-YOUR_UNIQUE_ID"  # Make this unique!
+#     priority: "default"  # min, low, default, high, max
+#   
+#   # Telegram configuration (alternative)
+#   telegram:
+#     bot_token: "${TELEGRAM_BOT_TOKEN}"
+#     chat_id: "${TELEGRAM_CHAT_ID}"
