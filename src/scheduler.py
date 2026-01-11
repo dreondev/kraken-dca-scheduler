@@ -427,11 +427,11 @@ class DCAScheduler:
         
         try:
             if not result.success:
-                self._notifier.send_error(result.message, title="❌ DCA Error")
+                self._notifier.send_error(result.message, title="DCA Error")
             elif result.insufficient_funds:
-                self._notifier.send_info(result.message, title="⚠️ Insufficient Funds")
+                self._notifier.send_info(result.message, title="Insufficient Funds")
             else:
-                self._notifier.send_success(result.message, title="✅ DCA Executed")
+                self._notifier.send_success(result.message, title="DCA Executed")
             
             logger.info("Notification sent successfully")
             

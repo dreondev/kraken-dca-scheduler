@@ -113,12 +113,12 @@ class NtfyNotifier:
             logger.error(error_msg)
             raise NotificationError(error_msg)
     
-    def send_success(self, message: str, title: str = "✅ Success") -> bool:
+    def send_success(self, message: str, title: str = "DCA Success") -> bool:
         """Send success notification with green theme.
         
         Args:
             message: Success message
-            title: Title (default: "✅ Success")
+            title: Title (default: "DCA Success")
         
         Returns:
             True if sent successfully
@@ -130,12 +130,12 @@ class NtfyNotifier:
             tags=["white_check_mark"],
         )
     
-    def send_error(self, message: str, title: str = "❌ Error") -> bool:
+    def send_error(self, message: str, title: str = "DCA Error") -> bool:
         """Send error notification with high priority.
         
         Args:
             message: Error message
-            title: Title (default: "❌ Error")
+            title: Title (default: "DCA Error")
         
         Returns:
             True if sent successfully
@@ -147,12 +147,12 @@ class NtfyNotifier:
             tags=["x", "warning"],
         )
     
-    def send_info(self, message: str, title: str = "ℹ️ Info") -> bool:
+    def send_info(self, message: str, title: str = "DCA Info") -> bool:
         """Send info notification.
         
         Args:
             message: Info message
-            title: Title (default: "ℹ️ Info")
+            title: Title (default: "DCA Info")
         
         Returns:
             True if sent successfully
