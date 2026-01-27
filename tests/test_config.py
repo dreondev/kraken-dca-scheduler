@@ -10,6 +10,7 @@ from src.config import (
     NtfyConfig,
     NotificationConfig,
     GeneralConfig,
+    ScheduleConfig,
     _resolve_env_var,
     _parse_string_to_float,
 )
@@ -143,6 +144,36 @@ class TestNtfyConfig:
             NtfyConfig(server="https://ntfy.sh", topic="test", priority="invalid")
 
 
+class TestScheduleConfig:
+    """Tests for ScheduleConfig dataclass."""
+
+    def test_valid_cron_expression(self):
+        """Test that valid cron expression is accepted."""
+        config = ScheduleConfig(enabled=True, cron="0 8 * * *")
+        assert config.enabled is True
+        assert config.cron == "0 8 * * *"
+
+    def test_disabled_schedule_skips_validation(self):
+        """Test that disabled schedule skips cron validation."""
+        config = ScheduleConfig(enabled=False, cron="")
+        assert config.enabled is False
+
+    def test_empty_cron_when_enabled_raises_error(self):
+        """Test that empty cron raises error when enabled."""
+        with pytest.raises(ValueError, match="Cron expression is required"):
+            ScheduleConfig(enabled=True, cron="")
+
+    def test_invalid_cron_parts_raises_error(self):
+        """Test that cron with wrong number of parts raises error."""
+        with pytest.raises(ValueError, match="must have 5 parts"):
+            ScheduleConfig(enabled=True, cron="0 8 *")
+
+    def test_cron_with_six_parts_raises_error(self):
+        """Test that cron with 6 parts raises error."""
+        with pytest.raises(ValueError, match="must have 5 parts"):
+            ScheduleConfig(enabled=True, cron="0 0 8 * * *")
+
+
 class TestConfigLoad:
     """Tests for Config.load() method."""
     
@@ -175,6 +206,55 @@ telegram:
         assert config.kraken.api_key == "test_key"
         assert config.trade.amount_eur == 20.0
         assert config.telegram.bot_token == "123:ABC"
+    
+    def test_load_with_schedule(self, tmp_path):
+        """Test loading config with schedule section."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("""
+general:
+  timezone: "Europe/Berlin"
+  log_level: "INFO"
+
+kraken:
+  api_key: "test_key"
+  api_secret: "test_secret"
+  pair: "XXBTZEUR"
+
+trade:
+  amount_eur: 20.0
+  discount_percent: 0.5
+  validate_order: true
+
+schedule:
+  enabled: true
+  cron: "0 8 * * *"
+""")
+        
+        config = Config.load(str(config_file))
+        
+        assert config.schedule is not None
+        assert config.schedule.enabled is True
+        assert config.schedule.cron == "0 8 * * *"
+    
+    def test_load_without_schedule(self, tmp_path):
+        """Test loading config without schedule section."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("""
+general:
+  timezone: "Europe/Berlin"
+
+kraken:
+  api_key: "test_key"
+  api_secret: "test_secret"
+
+trade:
+  amount_eur: 20.0
+  discount_percent: 0.5
+""")
+        
+        config = Config.load(str(config_file))
+        
+        assert config.schedule is None
     
     def test_load_with_string_numbers(self, tmp_path):
         """Test loading config with string numbers (German format)."""
@@ -239,7 +319,7 @@ telegram:
         config_file = tmp_path / "config.yaml"
         config_file.write_text("invalid: yaml: content:")
         
-        with pytest.raises(Exception):  # yaml.YAMLError or similar
+        with pytest.raises(Exception):
             Config.load(str(config_file))
     
     def test_load_missing_required_section(self, tmp_path):

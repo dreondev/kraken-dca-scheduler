@@ -177,6 +177,31 @@ class NotificationConfig:
 
 
 @dataclass
+class ScheduleConfig:
+    """Schedule configuration for daemon mode."""
+    
+    enabled: bool
+    cron: str
+    
+    def __post_init__(self) -> None:
+        """Validate configuration after initialization."""
+        if self.enabled:
+            self._validate_cron()
+    
+    def _validate_cron(self) -> None:
+        """Validate that cron expression has correct format."""
+        if not self.cron:
+            raise ValueError("Cron expression is required when schedule is enabled")
+        
+        parts = self.cron.split()
+        if len(parts) != 5:
+            raise ValueError(
+                f"Cron expression must have 5 parts (minute hour day month weekday), "
+                f"got {len(parts)}: '{self.cron}'"
+            )
+
+
+@dataclass
 class Config:
     """Main configuration container."""
     
@@ -185,6 +210,7 @@ class Config:
     trade: TradeConfig
     telegram: Optional[TelegramConfig] = None
     notifications: Optional[NotificationConfig] = None
+    schedule: Optional[ScheduleConfig] = None
     
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> "Config":
@@ -208,6 +234,7 @@ class Config:
         trade = _parse_trade_config(data)
         telegram = _parse_telegram_config(data)
         notifications = _parse_notification_config(data)
+        schedule = _parse_schedule_config(data)
         
         return cls(
             general=general,
@@ -215,6 +242,7 @@ class Config:
             trade=trade,
             telegram=telegram,
             notifications=notifications,
+            schedule=schedule,
         )
 
 
@@ -235,18 +263,15 @@ def _find_config_file(config_path: Optional[str]) -> str:
     Raises:
         FileNotFoundError: If config file not found in any location
     """
-    # Check explicit path first
     if config_path is not None:
         if Path(config_path).exists():
             return config_path
         raise FileNotFoundError(f"Config file not found: {config_path}")
     
-    # Check environment variable
     env_path = os.getenv("DCA_CONFIG_PATH")
     if env_path and Path(env_path).exists():
         return env_path
     
-    # Check default locations
     default_paths = ["config.yaml", "config/config.yaml"]
     for path in default_paths:
         if Path(path).exists():
@@ -293,12 +318,10 @@ def _resolve_env_var(value: str) -> str:
     if not value or not isinstance(value, str):
         return value
     
-    # Handle ${VAR_NAME} format
     if value.startswith("${") and value.endswith("}"):
         var_name = value[2:-1]
         return os.getenv(var_name, "")
     
-    # Handle $VAR_NAME format
     if value.startswith("$"):
         var_name = value[1:]
         return os.getenv(var_name, "")
@@ -319,7 +342,6 @@ def _parse_string_to_float(value: Any) -> float:
         return float(value)
     
     if isinstance(value, str):
-        # Handle German number format (comma as decimal separator)
         return float(value.replace(',', '.'))
     
     raise ValueError(f"Cannot parse value to float: {value}")
@@ -505,4 +527,27 @@ def _parse_ntfy_subconfig(notif_data: Dict[str, Any]) -> Optional[NtfyConfig]:
         server=server,
         topic=topic,
         priority=priority,
+    )
+
+
+def _parse_schedule_config(data: Dict[str, Any]) -> Optional[ScheduleConfig]:
+    """Parse schedule configuration section.
+    
+    Args:
+        data: Full configuration dictionary
+    
+    Returns:
+        Parsed ScheduleConfig object or None if not configured
+    """
+    schedule_data = data.get("schedule")
+    
+    if not schedule_data:
+        return None
+    
+    enabled = schedule_data.get("enabled", False)
+    cron = schedule_data.get("cron", "")
+    
+    return ScheduleConfig(
+        enabled=enabled,
+        cron=cron,
     )
