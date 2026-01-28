@@ -23,6 +23,21 @@ def config():
 
 
 @pytest.fixture
+def config_with_buffer():
+    """Create test configuration with min_free_balance buffer."""
+    return Config(
+        general=GeneralConfig(timezone="Europe/Berlin", log_level="INFO"),
+        kraken=KrakenConfig(api_key="test_key", api_secret="test_secret", pair="XXBTZEUR"),
+        trade=TradeConfig(
+            amount_eur=20.0,
+            discount_percent=0.5,
+            validate_order=True,
+            min_free_balance=10.0  # 10 EUR buffer
+        ),
+    )
+
+
+@pytest.fixture
 def mock_kraken():
     """Create mock Kraken client."""
     return Mock()
@@ -38,6 +53,12 @@ def mock_notifier():
 def scheduler(config, mock_kraken, mock_notifier):
     """Create DCA scheduler with mocks."""
     return DCAScheduler(config, mock_kraken, mock_notifier)
+
+
+@pytest.fixture
+def scheduler_with_buffer(config_with_buffer, mock_kraken, mock_notifier):
+    """Create DCA scheduler with min_free_balance buffer."""
+    return DCAScheduler(config_with_buffer, mock_kraken, mock_notifier)
 
 
 @pytest.fixture
@@ -64,6 +85,20 @@ class TestDCASchedulerInit:
         assert scheduler._config == config
         assert scheduler._kraken == mock_kraken
         assert scheduler._notifier == mock_notifier
+
+
+class TestCalculateRequiredBalance:
+    """Tests for _calculate_required_balance method."""
+    
+    def test_required_balance_no_buffer(self, scheduler):
+        """Test required balance without min_free_balance."""
+        required = scheduler._calculate_required_balance()
+        assert required == 20.0  # Only trade amount
+    
+    def test_required_balance_with_buffer(self, scheduler_with_buffer):
+        """Test required balance with min_free_balance."""
+        required = scheduler_with_buffer._calculate_required_balance()
+        assert required == 30.0  # 20.0 trade + 10.0 buffer
 
 
 class TestExecuteWithSufficientFunds:
@@ -157,6 +192,72 @@ class TestExecuteWithInsufficientFunds:
         
         # Verify info notification
         mock_notifier.send_info.assert_called_once()
+    
+    def test_execute_insufficient_funds_with_buffer(
+        self, scheduler_with_buffer, mock_kraken, mock_notifier, sample_ticker
+    ):
+        """Test execution when funds are below trade amount + buffer."""
+        # Setup mocks - free balance is 25, but need 30 (20 trade + 10 buffer)
+        mock_kraken.get_ticker.return_value = sample_ticker
+        mock_kraken.get_balance_by_currency.return_value = 25.0
+        mock_kraken.calculate_free_balance.return_value = 25.0
+        
+        # Execute
+        result = scheduler_with_buffer.execute()
+        
+        # Verify - should be insufficient even though 25 > 20 (trade amount)
+        assert result.success is True
+        assert result.insufficient_funds is True
+        assert result.order_placed is False
+        
+        # Verify no order placed
+        mock_kraken.place_limit_order.assert_not_called()
+    
+    def test_execute_sufficient_funds_with_buffer(
+        self, scheduler_with_buffer, mock_kraken, mock_notifier, sample_ticker
+    ):
+        """Test execution when funds are above trade amount + buffer."""
+        # Setup mocks - free balance is 35, need 30 (20 trade + 10 buffer)
+        mock_kraken.get_ticker.return_value = sample_ticker
+        mock_kraken.get_balance_by_currency.return_value = 35.0
+        mock_kraken.calculate_free_balance.return_value = 35.0
+        mock_kraken.place_limit_order.return_value = OrderResult(
+            order_ids=[],
+            description="buy 0.00025641 XXBTZEUR @ limit 77531.5",
+            is_validated=True,
+        )
+        
+        # Execute
+        result = scheduler_with_buffer.execute()
+        
+        # Verify - should succeed because 35 >= 30
+        assert result.success is True
+        assert result.insufficient_funds is False
+        
+        # Verify order was placed
+        mock_kraken.place_limit_order.assert_called_once()
+    
+    def test_execute_exactly_required_balance(
+        self, scheduler_with_buffer, mock_kraken, mock_notifier, sample_ticker
+    ):
+        """Test execution when funds exactly equal required balance."""
+        # Setup mocks - free balance is exactly 30 (20 trade + 10 buffer)
+        mock_kraken.get_ticker.return_value = sample_ticker
+        mock_kraken.get_balance_by_currency.return_value = 30.0
+        mock_kraken.calculate_free_balance.return_value = 30.0
+        mock_kraken.place_limit_order.return_value = OrderResult(
+            order_ids=[],
+            description="buy 0.00025641 XXBTZEUR @ limit 77531.5",
+            is_validated=True,
+        )
+        
+        # Execute
+        result = scheduler_with_buffer.execute()
+        
+        # Verify - should succeed because 30 >= 30
+        assert result.success is True
+        assert result.insufficient_funds is False
+        mock_kraken.place_limit_order.assert_called_once()
 
 
 class TestExecuteWithErrors:
@@ -324,9 +425,24 @@ class TestMessageBuilding:
         )
         
         assert "⚠️ Insufficient funds" in message
-        assert "Planned order" in message
+        assert "Required:" in message
         assert "50,00 EUR" in message
         assert "10,00 EUR" in message
+    
+    def test_build_insufficient_funds_message_with_buffer(
+        self, scheduler_with_buffer, sample_ticker
+    ):
+        """Test insufficient funds message includes buffer info."""
+        message = scheduler_with_buffer._build_insufficient_funds_message(
+            ticker=sample_ticker,
+            balance_eur=25.0,
+            free_balance=25.0,
+            limit_price=77531.5,
+            btc_volume=0.000258,
+        )
+        
+        assert "⚠️ Insufficient funds" in message
+        assert "Buffer: 10,00 EUR" in message  # Shows buffer when > 0
 
 
 class TestDCAResult:

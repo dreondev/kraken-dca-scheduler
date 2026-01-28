@@ -52,7 +52,7 @@ class DCAScheduler:
     Executes DCA strategy:
     1. Check current BTC price
     2. Calculate limit order price (discount under Ask)
-    3. Check available balance
+    3. Check available balance (respecting min_free_balance)
     4. Place limit order if sufficient funds
     5. Send notification
     """
@@ -94,11 +94,15 @@ class DCAScheduler:
             balance_eur = self._get_balance()
             free_balance = self._get_free_balance()
             
-            # Step 3: Execute strategy
-            if free_balance >= self._config.trade.amount_eur:
+            # Step 3: Execute strategy (respecting min_free_balance)
+            required_balance = self._calculate_required_balance()
+            
+            if free_balance >= required_balance:
                 result = self._execute_trade(ticker, balance_eur, free_balance)
             else:
-                result = self._handle_insufficient_funds(ticker, balance_eur, free_balance)
+                result = self._handle_insufficient_funds(
+                    ticker, balance_eur, free_balance, required_balance
+                )
             
             # Step 4: Send notification
             self._send_notification(result)
@@ -111,6 +115,14 @@ class DCAScheduler:
             error_result = self._create_error_result(str(e))
             self._send_notification(error_result)
             return error_result
+    
+    def _calculate_required_balance(self) -> float:
+        """Calculate minimum required balance for trade.
+        
+        Returns:
+            Required balance (trade amount + min_free_balance buffer)
+        """
+        return self._config.trade.amount_eur + self._config.trade.min_free_balance
     
     def _get_ticker(self) -> Ticker:
         """Get current ticker information.
@@ -224,6 +236,7 @@ class DCAScheduler:
         ticker: Ticker,
         balance_eur: float,
         free_balance: float,
+        required_balance: float,
     ) -> DCAResult:
         """Handle case of insufficient funds.
         
@@ -231,12 +244,15 @@ class DCAScheduler:
             ticker: Current ticker information
             balance_eur: Total EUR balance
             free_balance: Free EUR balance
+            required_balance: Required balance for trade
         
         Returns:
             DCAResult indicating insufficient funds
         """
         logger.warning(
-            f"Insufficient funds: Need {format_currency(self._config.trade.amount_eur)}, "
+            f"Insufficient funds: Need {format_currency(required_balance)} "
+            f"(trade: {format_currency(self._config.trade.amount_eur)} + "
+            f"buffer: {format_currency(self._config.trade.min_free_balance)}), "
             f"have {format_currency(free_balance)} available"
         )
         
@@ -369,11 +385,17 @@ class DCAScheduler:
             Formatted message string
         """
         timestamp = get_timestamp_string(self._config.general.timezone)
+        min_balance = self._config.trade.min_free_balance
+        
+        buffer_info = ""
+        if min_balance > 0:
+            buffer_info = f"Buffer: {format_currency(min_balance)}\n"
         
         return (
             f"⚠️ Insufficient funds on {timestamp}\n\n"
-            f"Planned order:\n"
-            f"Amount: {format_currency(self._config.trade.amount_eur)}\n"
+            f"Required:\n"
+            f"Trade Amount: {format_currency(self._config.trade.amount_eur)}\n"
+            f"{buffer_info}"
             f"Limit Price: {format_currency(limit_price, decimals=1)}\n"
             f"BTC Volume: {format_btc(btc_volume)}\n"
             f"Discount: {format_percentage(self._config.trade.discount_percent / 100)} under Ask\n\n"
