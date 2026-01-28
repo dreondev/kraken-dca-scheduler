@@ -1,61 +1,98 @@
 # Kraken DCA Scheduler - Configuration Example
+# =============================================
 #
-# Copy this file to config.yaml and fill in your values
-# DO NOT commit config.yaml with your API keys!
+# Copy this file to config.yaml and fill in your values:
+#   cp config/config.example.yaml config.yaml
+#
+# SECURITY: Never commit config.yaml with real API keys!
+#           The .gitignore already excludes config.yaml
 
+# -----------------------------------------------------------------------------
+# General Settings
+# -----------------------------------------------------------------------------
 general:
-  # Timezone for logging and timestamps
+  # Timezone for scheduling and log timestamps
+  # See: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
   timezone: "Europe/Berlin"
   
   # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
   log_level: "INFO"
 
+# -----------------------------------------------------------------------------
+# Kraken API Configuration
+# -----------------------------------------------------------------------------
 kraken:
-  # Kraken API credentials
-  # RECOMMENDED: Use environment variables for security
-  # Example: api_key: "${KRAKEN_API_KEY}"
-  api_key: "your_kraken_api_key_here"
-  api_secret: "your_kraken_api_secret_here"
+  # API credentials - Use environment variables for security!
+  # Create API key at: https://www.kraken.com/u/security/api
+  # Required permissions: Query Funds, Create & Modify Orders
+  api_key: "${KRAKEN_API_KEY}"
+  api_secret: "${KRAKEN_API_SECRET}"
   
-  # Trading pair (default: Bitcoin/Euro)
+  # Trading pair (Kraken format)
+  # Common pairs: XXBTZEUR (BTC/EUR), XETHZEUR (ETH/EUR), XXBTZUSD (BTC/USD)
   pair: "XXBTZEUR"
 
+# -----------------------------------------------------------------------------
+# Trade Configuration
+# -----------------------------------------------------------------------------
 trade:
-  # Amount in EUR to invest per execution
-  amount_eur: 20.0
+  # Amount in EUR to invest per DCA execution
+  amount_eur: 50.0
   
   # Discount percentage below Ask price for limit order
-  # Example: 0.5 means 0.5% below market Ask price
+  # Example: 0.5 = place limit order 0.5% below current Ask price
+  # This increases chance of getting a better price, but order may not fill
   discount_percent: 0.5
   
-  # Validate order before placing (dry-run mode)
-  # Set to false for actual trading
+  # Validate mode (dry-run)
+  # true  = Only validate order, don't actually place it (for testing)
+  # false = Place real orders (production mode)
   validate_order: true
   
-  # Minimum EUR balance to keep (optional, default: 0)
-  min_free_balance: 5.0
+  # Minimum EUR balance to keep in account (safety buffer)
+  # Order will be skipped if: free_balance < amount_eur + min_free_balance
+  min_free_balance: 10.0
 
-# LEGACY: Telegram configuration (for backward compatibility)
-# This will be used if 'notifications' section is not present
-telegram:
-  # Telegram Bot Token (get from @BotFather)
-  bot_token: "your_telegram_bot_token"
+# -----------------------------------------------------------------------------
+# Notifications (optional)
+# -----------------------------------------------------------------------------
+notifications:
+  # Enable/disable notifications
+  enabled: true
   
-  # Telegram Chat ID (your personal chat ID)
-  chat_id: "your_telegram_chat_id"
+  # Provider: currently only "ntfy" is supported
+  provider: "ntfy"
+  
+  # ntfy.sh configuration
+  # ntfy is a simple pub-sub notification service
+  # Public server: https://ntfy.sh (free, no account needed)
+  # Self-hosted: Use your own ntfy server URL
+  ntfy:
+    # Server URL (use https://ntfy.sh for public server)
+    server: "https://ntfy.sh"
+    
+    # Topic name - MUST be unique! Others can subscribe if they know the name
+    # Recommendation: Use random string like "kraken-dca-a8f3k2x9"
+    topic: "kraken-dca-YOUR_UNIQUE_ID"
+    
+    # Message priority: min, low, default, high, max
+    priority: "default"
 
-# NEW: Unified notifications configuration
-# notifications:
-#   enabled: true
-#   provider: "ntfy"  # "telegram" or "ntfy"
-#   
-#   # ntfy.sh configuration
-#   ntfy:
-#     server: "https://ntfy.sh"
-#     topic: "kraken-dca-YOUR_UNIQUE_ID"  # Make this unique!
-#     priority: "default"  # min, low, default, high, max
-#   
-#   # Telegram configuration (alternative)
-#   telegram:
-#     bot_token: "${TELEGRAM_BOT_TOKEN}"
-#     chat_id: "${TELEGRAM_CHAT_ID}"
+# -----------------------------------------------------------------------------
+# Schedule Configuration (Daemon Mode)
+# -----------------------------------------------------------------------------
+schedule:
+  # Enable daemon mode (continuous running with scheduled execution)
+  # false = Run once and exit (for cron/systemd timer)
+  # true  = Run continuously with internal scheduler
+  enabled: true
+  
+  # Cron expression (when schedule.enabled is true)
+  # Format: minute hour day month weekday
+  #
+  # Examples:
+  #   "0 8 * * *"     = Daily at 08:00
+  #   "0 8 * * 1-5"   = Weekdays at 08:00
+  #   "0 */6 * * *"   = Every 6 hours
+  #   "30 9 1,15 * *" = 1st and 15th of month at 09:30
+  cron: "0 8 * * *"
