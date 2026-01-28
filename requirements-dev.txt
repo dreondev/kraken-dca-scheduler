@@ -1,13 +1,24 @@
+# Kraken DCA Scheduler - Development Dependencies
+# =================================================
+#
+# Install with: pip install -r requirements-dev.txt
+# This also installs production dependencies.
+
+# Include production dependencies
+-r requirements.txt
+
 # Testing
-pytest==7.4.3
-pytest-mock==3.12.0
-pytest-cov==4.1.0
+pytest>=7.4.0,<8.0.0
+pytest-mock>=3.12.0,<4.0.0
+pytest-cov>=4.1.0,<5.0.0
 
-# Code Quality
-black==23.12.1
-flake8==7.0.0
-mypy==1.7.1
+# Code Formatting
+black>=23.12.0,<25.0.0
 
-# Type Stubs
-types-PyYAML==6.0.12.12
-types-requests==2.31.0.10
+# Linting
+flake8>=7.0.0,<8.0.0
+
+# Type Checking
+mypy>=1.7.0,<2.0.0
+types-PyYAML>=6.0.12,<7.0.0
+types-requests>=2.31.0,<3.0.0

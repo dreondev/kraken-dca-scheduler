@@ -1,39 +1,18 @@
-anyio==4.12.1
-APScheduler==3.10.4
-black==23.12.1
-certifi==2026.1.4
-charset-normalizer==3.4.4
-click==8.3.1
-coverage==7.13.1
-flake8==7.0.0
-h11==0.16.0
-httpcore==1.0.9
-httpx==0.26.0
-idna==3.11
-iniconfig==2.3.0
+# Kraken DCA Scheduler - Production Dependencies
+# ================================================
+
+# Kraken API client
 krakenex==2.2.2
-mccabe==0.7.0
-mypy==1.7.1
-mypy_extensions==1.1.0
-packaging==25.0
-pathspec==1.0.3
-platformdirs==4.5.1
-pluggy==1.6.0
-pycodestyle==2.11.1
-pyflakes==3.2.0
-Pygments==2.19.2
-pytest==7.4.3
-pytest-cov==4.1.0
-pytest-mock==3.12.0
-python-telegram-bot==20.8
-pytz==2025.2
-PyYAML==6.0.1
-requests==2.31.0
-six==1.17.0
-sniffio==1.3.1
-types-PyYAML==6.0.12.12
-types-requests==2.31.0.10
-typing_extensions==4.15.0
-tzdata==2024.1
-tzlocal==5.3.1
-urllib3==2.6.3
+
+# HTTP requests (for ntfy notifications)
+requests>=2.31.0,<3.0.0
+
+# YAML configuration
+PyYAML>=6.0.1,<7.0.0
+
+# Scheduling
+APScheduler>=3.10.4,<4.0.0
+
+# Timezone handling
+pytz>=2024.1
+tzdata>=2024.1
