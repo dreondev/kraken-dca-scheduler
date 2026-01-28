@@ -6,7 +6,6 @@ from src.config import (
     Config,
     KrakenConfig,
     TradeConfig,
-    TelegramConfig,
     NtfyConfig,
     NotificationConfig,
     GeneralConfig,
@@ -76,6 +75,16 @@ class TestTradeConfig:
                 validate_order=True,
                 min_free_balance=0.0
             )
+    
+    def test_negative_min_balance(self):
+        """Test that negative min_free_balance raises error."""
+        with pytest.raises(ValueError, match="cannot be negative"):
+            TradeConfig(
+                amount_eur=20.0,
+                discount_percent=0.5,
+                validate_order=True,
+                min_free_balance=-10.0
+            )
 
 
 class TestGeneralConfig:
@@ -101,24 +110,6 @@ class TestGeneralConfig:
             GeneralConfig(timezone="Europe/Berlin", log_level="INVALID")
 
 
-class TestTelegramConfig:
-    """Tests for TelegramConfig dataclass."""
-    
-    def test_valid_config(self):
-        """Test creating valid Telegram config."""
-        config = TelegramConfig(
-            bot_token="123:ABC",
-            chat_id="456"
-        )
-        assert config.bot_token == "123:ABC"
-        assert config.chat_id == "456"
-    
-    def test_missing_token(self):
-        """Test that missing token raises error."""
-        with pytest.raises(ValueError, match="bot token and chat ID are required"):
-            TelegramConfig(bot_token="", chat_id="456")
-
-
 class TestNtfyConfig:
     """Tests for NtfyConfig dataclass."""
     
@@ -142,6 +133,63 @@ class TestNtfyConfig:
         """Test that invalid priority raises error."""
         with pytest.raises(ValueError, match="Priority must be one of"):
             NtfyConfig(server="https://ntfy.sh", topic="test", priority="invalid")
+    
+    def test_all_valid_priorities(self):
+        """Test all valid priority levels."""
+        for priority in ["min", "low", "default", "high", "max"]:
+            config = NtfyConfig(
+                server="https://ntfy.sh",
+                topic="test",
+                priority=priority
+            )
+            assert config.priority == priority
+
+
+class TestNotificationConfig:
+    """Tests for NotificationConfig dataclass."""
+    
+    def test_valid_ntfy_config(self):
+        """Test creating valid notification config with ntfy."""
+        ntfy = NtfyConfig(
+            server="https://ntfy.sh",
+            topic="test-topic",
+            priority="default"
+        )
+        config = NotificationConfig(
+            enabled=True,
+            provider="ntfy",
+            ntfy=ntfy
+        )
+        assert config.enabled is True
+        assert config.provider == "ntfy"
+        assert config.ntfy is not None
+    
+    def test_disabled_config_skips_validation(self):
+        """Test that disabled notification skips provider validation."""
+        config = NotificationConfig(
+            enabled=False,
+            provider="invalid",
+            ntfy=None
+        )
+        assert config.enabled is False
+    
+    def test_invalid_provider(self):
+        """Test that invalid provider raises error."""
+        with pytest.raises(ValueError, match="Provider must be one of"):
+            NotificationConfig(
+                enabled=True,
+                provider="telegram",  # No longer supported
+                ntfy=None
+            )
+    
+    def test_missing_ntfy_config(self):
+        """Test that missing ntfy config raises error when provider is ntfy."""
+        with pytest.raises(ValueError, match="ntfy config required"):
+            NotificationConfig(
+                enabled=True,
+                provider="ntfy",
+                ntfy=None
+            )
 
 
 class TestScheduleConfig:
@@ -172,6 +220,19 @@ class TestScheduleConfig:
         """Test that cron with 6 parts raises error."""
         with pytest.raises(ValueError, match="must have 5 parts"):
             ScheduleConfig(enabled=True, cron="0 0 8 * * *")
+    
+    def test_various_valid_cron_expressions(self):
+        """Test various valid cron expressions."""
+        valid_crons = [
+            "0 8 * * *",      # Daily at 8am
+            "0 8 * * 1-5",    # Weekdays at 8am
+            "0 */6 * * *",    # Every 6 hours
+            "30 9 1,15 * *",  # 1st and 15th at 9:30
+            "*/15 * * * *",   # Every 15 minutes
+        ]
+        for cron in valid_crons:
+            config = ScheduleConfig(enabled=True, cron=cron)
+            assert config.cron == cron
 
 
 class TestConfigLoad:
@@ -194,10 +255,15 @@ trade:
   amount_eur: 20.0
   discount_percent: 0.5
   validate_order: true
+  min_free_balance: 5.0
 
-telegram:
-  bot_token: "123:ABC"
-  chat_id: "456"
+notifications:
+  enabled: true
+  provider: "ntfy"
+  ntfy:
+    server: "https://ntfy.sh"
+    topic: "test-topic"
+    priority: "default"
 """)
         
         config = Config.load(str(config_file))
@@ -205,7 +271,9 @@ telegram:
         assert config.general.timezone == "Europe/Berlin"
         assert config.kraken.api_key == "test_key"
         assert config.trade.amount_eur == 20.0
-        assert config.telegram.bot_token == "123:ABC"
+        assert config.trade.min_free_balance == 5.0
+        assert config.notifications.provider == "ntfy"
+        assert config.notifications.ntfy.topic == "test-topic"
     
     def test_load_with_schedule(self, tmp_path):
         """Test loading config with schedule section."""
@@ -256,6 +324,26 @@ trade:
         
         assert config.schedule is None
     
+    def test_load_without_notifications(self, tmp_path):
+        """Test loading config without notifications section."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("""
+general:
+  timezone: "Europe/Berlin"
+
+kraken:
+  api_key: "test_key"
+  api_secret: "test_secret"
+
+trade:
+  amount_eur: 20.0
+  discount_percent: 0.5
+""")
+        
+        config = Config.load(str(config_file))
+        
+        assert config.notifications is None
+    
     def test_load_with_string_numbers(self, tmp_path):
         """Test loading config with string numbers (German format)."""
         config_file = tmp_path / "config.yaml"
@@ -270,10 +358,6 @@ kraken:
 trade:
   amount_eur: "20,0"
   discount_percent: "0,5"
-
-telegram:
-  bot_token: "123:ABC"
-  chat_id: "456"
 """)
         
         config = Config.load(str(config_file))
@@ -298,10 +382,6 @@ kraken:
 trade:
   amount_eur: 20.0
   discount_percent: 0.5
-
-telegram:
-  bot_token: "123:ABC"
-  chat_id: "456"
 """)
         
         config = Config.load(str(config_file))
@@ -332,6 +412,27 @@ general:
         
         with pytest.raises(ValueError, match="Missing 'kraken' section"):
             Config.load(str(config_file))
+    
+    def test_load_with_defaults(self, tmp_path):
+        """Test that defaults are applied for optional fields."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("""
+kraken:
+  api_key: "test_key"
+  api_secret: "test_secret"
+
+trade:
+  amount_eur: 20.0
+  discount_percent: 0.5
+""")
+        
+        config = Config.load(str(config_file))
+        
+        # Check defaults
+        assert config.general.timezone == "Europe/Berlin"
+        assert config.general.log_level == "INFO"
+        assert config.trade.validate_order is True
+        assert config.trade.min_free_balance == 0.0
 
 
 class TestEnvVarResolution:
@@ -358,6 +459,16 @@ class TestEnvVarResolution:
         """Test that plain values are not resolved."""
         result = _resolve_env_var("plain_value")
         assert result == "plain_value"
+    
+    def test_resolve_none_value(self):
+        """Test that None is handled gracefully."""
+        result = _resolve_env_var(None)
+        assert result is None
+    
+    def test_resolve_non_string_value(self):
+        """Test that non-string values are returned as-is."""
+        result = _resolve_env_var(123)
+        assert result == 123
 
 
 class TestParseStringToFloat:
@@ -387,3 +498,8 @@ class TestParseStringToFloat:
         """Test that invalid value raises error."""
         with pytest.raises(ValueError, match="Cannot parse value to float"):
             _parse_string_to_float(None)
+    
+    def test_parse_invalid_string(self):
+        """Test that invalid string raises error."""
+        with pytest.raises(ValueError):
+            _parse_string_to_float("not_a_number")

@@ -102,23 +102,6 @@ class TradeConfig:
 
 
 @dataclass
-class TelegramConfig:
-    """Telegram notification configuration."""
-    
-    bot_token: str
-    chat_id: str
-    
-    def __post_init__(self) -> None:
-        """Validate configuration after initialization."""
-        self._validate_credentials()
-    
-    def _validate_credentials(self) -> None:
-        """Validate that bot token and chat ID are present."""
-        if not self.bot_token or not self.chat_id:
-            raise ValueError("Telegram bot token and chat ID are required")
-
-
-@dataclass
 class NtfyConfig:
     """ntfy.sh notification configuration."""
     
@@ -151,7 +134,6 @@ class NotificationConfig:
     
     enabled: bool
     provider: str
-    telegram: Optional[TelegramConfig]
     ntfy: Optional[NtfyConfig]
     
     def __post_init__(self) -> None:
@@ -162,7 +144,7 @@ class NotificationConfig:
     
     def _validate_provider(self) -> None:
         """Validate that provider is one of the allowed values."""
-        valid_providers = ["telegram", "ntfy"]
+        valid_providers = ["ntfy"]
         if self.provider not in valid_providers:
             raise ValueError(
                 f"Provider must be one of {valid_providers}, got '{self.provider}'"
@@ -170,8 +152,6 @@ class NotificationConfig:
     
     def _validate_provider_config(self) -> None:
         """Validate that provider-specific config is present."""
-        if self.provider == "telegram" and self.telegram is None:
-            raise ValueError("Telegram config required when provider is 'telegram'")
         if self.provider == "ntfy" and self.ntfy is None:
             raise ValueError("ntfy config required when provider is 'ntfy'")
 
@@ -208,7 +188,6 @@ class Config:
     general: GeneralConfig
     kraken: KrakenConfig
     trade: TradeConfig
-    telegram: Optional[TelegramConfig] = None
     notifications: Optional[NotificationConfig] = None
     schedule: Optional[ScheduleConfig] = None
     
@@ -232,7 +211,6 @@ class Config:
         general = _parse_general_config(data)
         kraken = _parse_kraken_config(data)
         trade = _parse_trade_config(data)
-        telegram = _parse_telegram_config(data)
         notifications = _parse_notification_config(data)
         schedule = _parse_schedule_config(data)
         
@@ -240,7 +218,6 @@ class Config:
             general=general,
             kraken=kraken,
             trade=trade,
-            telegram=telegram,
             notifications=notifications,
             schedule=schedule,
         )
@@ -425,32 +402,6 @@ def _parse_trade_config(data: Dict[str, Any]) -> TradeConfig:
     )
 
 
-def _parse_telegram_config(data: Dict[str, Any]) -> Optional[TelegramConfig]:
-    """Parse legacy Telegram configuration section.
-    
-    Args:
-        data: Full configuration dictionary
-    
-    Returns:
-        Parsed TelegramConfig object or None if not configured
-    """
-    telegram_data = data.get("telegram", {})
-    
-    if not telegram_data:
-        return None
-    
-    bot_token = _resolve_env_var(telegram_data.get("bot_token", ""))
-    chat_id = _resolve_env_var(telegram_data.get("chat_id", ""))
-    
-    if not bot_token or not chat_id:
-        return None
-    
-    return TelegramConfig(
-        bot_token=bot_token,
-        chat_id=chat_id,
-    )
-
-
 def _parse_notification_config(data: Dict[str, Any]) -> Optional[NotificationConfig]:
     """Parse notification configuration section.
     
@@ -466,42 +417,13 @@ def _parse_notification_config(data: Dict[str, Any]) -> Optional[NotificationCon
         return None
     
     enabled = notif_data.get("enabled", True)
-    provider = notif_data.get("provider", "telegram")
-    
-    telegram_config = _parse_telegram_subconfig(notif_data)
+    provider = notif_data.get("provider", "ntfy")
     ntfy_config = _parse_ntfy_subconfig(notif_data)
     
     return NotificationConfig(
         enabled=enabled,
         provider=provider,
-        telegram=telegram_config,
         ntfy=ntfy_config,
-    )
-
-
-def _parse_telegram_subconfig(notif_data: Dict[str, Any]) -> Optional[TelegramConfig]:
-    """Parse Telegram sub-configuration from notifications section.
-    
-    Args:
-        notif_data: Notifications configuration dictionary
-    
-    Returns:
-        Parsed TelegramConfig object or None if not configured
-    """
-    telegram_data = notif_data.get("telegram")
-    
-    if not telegram_data:
-        return None
-    
-    bot_token = _resolve_env_var(telegram_data.get("bot_token", ""))
-    chat_id = _resolve_env_var(telegram_data.get("chat_id", ""))
-    
-    if not bot_token or not chat_id:
-        return None
-    
-    return TelegramConfig(
-        bot_token=bot_token,
-        chat_id=chat_id,
     )
 
 
