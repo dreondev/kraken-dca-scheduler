@@ -68,10 +68,10 @@ class TestSetupLogger:
         assert "[INFO]" in content
     
     def test_setup_logger_no_propagation(self):
-        """Test that logger doesn't propagate to root."""
+        """Test that logger propagates to parent for child logger support."""
         logger = setup_logger(name="test-no-prop")
         
-        assert logger.propagate is False
+        assert logger.propagate is True
     
     def test_setup_logger_removes_old_handlers(self):
         """Test that setup_logger removes existing handlers."""

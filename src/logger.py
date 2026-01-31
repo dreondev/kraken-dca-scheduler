@@ -71,7 +71,7 @@ def setup_logger(
         logger.addHandler(file_handler)
     
     # Prevent propagation to root logger
-    logger.propagate = False
+    logger.propagate = True
     
     return logger
 
