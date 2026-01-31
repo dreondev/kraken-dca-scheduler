@@ -8,6 +8,7 @@ Supports two modes:
 - Daemon mode: Runs continuously on schedule (schedule.enabled: true)
 """
 
+import logging
 import sys
 
 from src.config import Config
@@ -35,6 +36,11 @@ def main() -> int:
         level=config.general.log_level,
         log_file="script.log",
     )
+    
+    # DEBUG: Test child logger
+    test_child = logging.getLogger("src.daemon")
+    test_child.info("DEBUG: Child logger test from main.py")
+    logger.info("DEBUG: Parent logger test from main.py")
     
     logger.info("=" * 70)
     logger.info("Kraken DCA Scheduler - Starting")
