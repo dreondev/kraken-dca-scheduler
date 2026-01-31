@@ -3,6 +3,10 @@
 This module provides a centralized logging configuration with
 support for console and file output, structured formatting,
 and log rotation.
+
+Note: Configures both root logger and named logger to ensure
+child loggers (src.daemon, src.scheduler) work correctly in
+APScheduler threads.
 """
 
 import logging
@@ -22,10 +26,9 @@ def setup_logger(
     """Set up and configure application logger.
     
     Creates a logger with console output and optional file output.
-    Uses structured formatting for better readability.
-    
-    Note: Uses "src" as default name so all src.* module loggers
-    inherit this configuration (src.daemon, src.scheduler, etc.)
+    Configures both root logger and named logger to ensure proper
+    logging from child modules (src.daemon, src.scheduler) even
+    when running in APScheduler threads.
     
     Args:
         name: Logger name (default: "src" for module inheritance)
@@ -44,33 +47,35 @@ def setup_logger(
         >>> logger = setup_logger(level="DEBUG", log_file="app.log")
         >>> logger.debug("Debug information")
     """
-    logger = logging.getLogger(name)
-    
-    # Remove existing handlers to avoid duplicates
-    logger.handlers.clear()
-    
-    # Set log level
     log_level = _parse_log_level(level)
-    logger.setLevel(log_level)
-    
-    # Create formatter
     formatter = _create_formatter()
     
-    # Add console handler
+    # Create handlers
     console_handler = _create_console_handler(formatter)
-    logger.addHandler(console_handler)
+    console_handler.setLevel(log_level)
     
-    # Add file handler if log file specified
+    file_handler = None
     if log_file:
         file_handler = _create_file_handler(
-            log_file,
-            formatter,
-            max_bytes,
-            backup_count
+            log_file, formatter, max_bytes, backup_count
         )
-        logger.addHandler(file_handler)
+        file_handler.setLevel(log_level)
     
-    # Prevent propagation to root logger
+    # Configure root logger as fallback for all child loggers
+    # This ensures src.daemon, src.scheduler etc. always have handlers
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(log_level)
+    root_logger.addHandler(console_handler)
+    if file_handler:
+        root_logger.addHandler(file_handler)
+    
+    # Configure named logger
+    logger = logging.getLogger(name)
+    logger.handlers.clear()
+    logger.setLevel(log_level)
+    
+    # Propagate to root logger (which has the handlers)
     logger.propagate = True
     
     return logger
@@ -113,7 +118,7 @@ def _create_formatter() -> logging.Formatter:
         Configured formatter
     """
     return logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] %(message)s",
+        fmt="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
@@ -149,7 +154,6 @@ def _create_file_handler(
     Returns:
         Configured rotating file handler
     """
-    # Ensure log directory exists
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     
