@@ -53,7 +53,7 @@ class DCAScheduler:
     1. Check current BTC price
     2. Calculate limit order price (discount under Ask)
     3. Check available balance (respecting min_free_balance)
-    4. Place limit order if sufficient funds
+    4. Place limit order if sufficient funds (post-only for lower fees)
     5. Send notification
     """
     
@@ -182,9 +182,10 @@ class DCAScheduler:
         limit_price = self._calculate_limit_price(ticker.ask_price)
         btc_volume = self._calculate_btc_volume(limit_price)
         
+        post_only_info = " (post-only)" if self._config.trade.post_only else ""
         logger.info(
             f"Order parameters: {format_btc(btc_volume)} @ "
-            f"{format_currency(limit_price, decimals=1)}"
+            f"{format_currency(limit_price, decimals=1)}{post_only_info}"
         )
         
         # Place order
@@ -194,6 +195,7 @@ class DCAScheduler:
                 volume=btc_volume,
                 price=limit_price,
                 validate=self._config.trade.validate_order,
+                post_only=self._config.trade.post_only,
             )
             
             action = "validated" if self._config.trade.validate_order else "placed"
@@ -322,11 +324,13 @@ class DCAScheduler:
         """
         timestamp = get_timestamp_string(self._config.general.timezone)
         validate_mode = self._config.trade.validate_order
+        post_only = self._config.trade.post_only
         
         action = "Order validated" if validate_mode else "Order placed"
+        post_only_info = " (post-only)" if post_only else ""
         
         return (
-            f"{action} on {timestamp}\n\n"
+            f"{action}{post_only_info} on {timestamp}\n\n"
             f"Amount: {format_currency(self._config.trade.amount_eur)}\n"
             f"Limit Price: {format_currency(limit_price, decimals=1)}\n"
             f"BTC Volume: {format_btc(btc_volume)}\n"

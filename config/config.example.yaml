@@ -52,6 +52,15 @@ trade:
   # Minimum EUR balance to keep in account (safety buffer)
   # Order will be skipped if: free_balance < amount_eur + min_free_balance
   min_free_balance: 10.0
+  
+  # Post-only orders (recommended: true)
+  # true  = Order will only be placed as maker (lower fees: 0.16%)
+  #         If order would immediately match, it will be rejected
+  # false = Order may be taker if it matches immediately (higher fees: 0.26%)
+  # 
+  # With a discount_percent > 0, orders typically won't match immediately anyway,
+  # but post_only provides extra safety to ensure you always pay maker fees.
+  post_only: true
 
 # -----------------------------------------------------------------------------
 # Notifications (optional)

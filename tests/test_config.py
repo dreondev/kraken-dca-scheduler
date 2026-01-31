@@ -49,7 +49,8 @@ class TestTradeConfig:
             amount_eur=20.0,
             discount_percent=0.5,
             validate_order=True,
-            min_free_balance=0.0
+            min_free_balance=0.0,
+            post_only=True
         )
         assert config.amount_eur == 20.0
         assert config.discount_percent == 0.5
@@ -63,7 +64,8 @@ class TestTradeConfig:
                 amount_eur=-10.0,
                 discount_percent=0.5,
                 validate_order=True,
-                min_free_balance=0.0
+                min_free_balance=0.0,
+            post_only=True
             )
     
     def test_invalid_discount_percent(self):
@@ -73,7 +75,8 @@ class TestTradeConfig:
                 amount_eur=20.0,
                 discount_percent=101.0,
                 validate_order=True,
-                min_free_balance=0.0
+                min_free_balance=0.0,
+            post_only=True
             )
     
     def test_negative_min_balance(self):
@@ -83,7 +86,8 @@ class TestTradeConfig:
                 amount_eur=20.0,
                 discount_percent=0.5,
                 validate_order=True,
-                min_free_balance=-10.0
+                min_free_balance=-10.0,
+            post_only=True
             )
 
 

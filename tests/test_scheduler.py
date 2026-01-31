@@ -17,7 +17,8 @@ def config():
             amount_eur=20.0,
             discount_percent=0.5,
             validate_order=True,
-            min_free_balance=0.0
+            min_free_balance=0.0,
+            post_only=True
         ),
     )
 
@@ -32,7 +33,8 @@ def config_with_buffer():
             amount_eur=20.0,
             discount_percent=0.5,
             validate_order=True,
-            min_free_balance=10.0  # 10 EUR buffer
+            min_free_balance=10.0,  # 10 EUR buffer
+            post_only=True
         ),
     )
 

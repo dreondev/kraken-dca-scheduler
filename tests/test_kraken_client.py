@@ -323,3 +323,52 @@ class TestRetryLogic:
             client.get_ticker("XXBTZEUR")
         
         assert mock_kraken_api.query_public.call_count == 3
+
+class TestPostOnlyOrders:
+    """Tests for post-only order functionality."""
+    
+    def test_place_limit_order_with_post_only(self):
+        """Test that post_only=True adds oflags=post to order."""
+        client = KrakenClient("key", "secret")
+        
+        with patch.object(client, '_query_private') as mock_query:
+            mock_query.return_value = {
+                "descr": {"order": "buy 0.001 XXBTZEUR @ limit 50000.0"},
+                "txid": []
+            }
+            
+            client.place_limit_order(
+                pair="XXBTZEUR",
+                volume=0.001,
+                price=50000.0,
+                validate=True,
+                post_only=True
+            )
+            
+            # Verify oflags was included
+            call_args = mock_query.call_args
+            order_data = call_args[0][1]  # Second positional arg is the data dict
+            assert order_data.get("oflags") == "post"
+    
+    def test_place_limit_order_without_post_only(self):
+        """Test that post_only=False omits oflags from order."""
+        client = KrakenClient("key", "secret")
+        
+        with patch.object(client, '_query_private') as mock_query:
+            mock_query.return_value = {
+                "descr": {"order": "buy 0.001 XXBTZEUR @ limit 50000.0"},
+                "txid": []
+            }
+            
+            client.place_limit_order(
+                pair="XXBTZEUR",
+                volume=0.001,
+                price=50000.0,
+                validate=True,
+                post_only=False
+            )
+            
+            # Verify oflags was NOT included
+            call_args = mock_query.call_args
+            order_data = call_args[0][1]
+            assert "oflags" not in order_data

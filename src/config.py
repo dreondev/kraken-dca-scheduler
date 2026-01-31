@@ -70,6 +70,7 @@ class TradeConfig:
     discount_percent: float
     validate_order: bool
     min_free_balance: float
+    post_only: bool
     
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
@@ -393,12 +394,14 @@ def _parse_trade_config(data: Dict[str, Any]) -> TradeConfig:
     discount_percent = _parse_string_to_float(trade_data.get("discount_percent"))
     validate_order = trade_data.get("validate_order", True)
     min_free_balance = trade_data.get("min_free_balance", 0.0)
+    post_only = trade_data.get("post_only", True)  # Default: True for lower fees
     
     return TradeConfig(
         amount_eur=amount_eur,
         discount_percent=discount_percent,
         validate_order=validate_order,
         min_free_balance=min_free_balance,
+        post_only=post_only,
     )
 
 

@@ -188,3 +188,27 @@ class TestLogLevels:
         content = log_file.read_text()
         assert "Info message" not in content
         assert "Warning message" in content
+
+class TestLoggerInheritance:
+    """Tests for logger inheritance (child loggers)."""
+    
+    def test_child_loggers_inherit_config(self):
+        """Ensure src.* modules inherit logger configuration."""
+        import logging
+        
+        # Setup parent logger (as done in main.py)
+        parent = setup_logger(name="src", level="INFO")
+        
+        # Get child loggers (as used in modules)
+        daemon_logger = logging.getLogger("src.daemon")
+        scheduler_logger = logging.getLogger("src.scheduler")
+        client_logger = logging.getLogger("src.kraken.client")
+        
+        # Verify they inherit the level
+        assert daemon_logger.getEffectiveLevel() == logging.INFO
+        assert scheduler_logger.getEffectiveLevel() == logging.INFO
+        assert client_logger.getEffectiveLevel() == logging.INFO
+        
+        # Verify parent relationship
+        assert daemon_logger.parent.name == "src"
+        assert scheduler_logger.parent.name == "src"

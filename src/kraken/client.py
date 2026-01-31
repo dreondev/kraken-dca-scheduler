@@ -188,6 +188,7 @@ class KrakenClient:
         volume: float,
         price: float,
         validate: bool = True,
+        post_only: bool = True,
     ) -> OrderResult:
         """Place a limit buy order.
         
@@ -196,6 +197,7 @@ class KrakenClient:
             volume: Order volume (amount to buy)
             price: Limit price
             validate: If True, only validate order without placing it
+            post_only: If True, use post-only flag (maker only, lower fees)
         
         Returns:
             OrderResult object with order details
@@ -204,8 +206,9 @@ class KrakenClient:
             KrakenAPIError: If API request fails
         """
         action = "Validating" if validate else "Placing"
+        post_only_info = " (post-only)" if post_only else ""
         logger.info(
-            f"{action} limit order: {volume:.8f} {pair} @ {price:.2f}"
+            f"{action} limit order{post_only_info}: {volume:.8f} {pair} @ {price:.2f}"
         )
         
         order_data = {
@@ -216,6 +219,10 @@ class KrakenClient:
             "volume": str(volume),
             "validate": "true" if validate else "false",
         }
+        
+        # Add post-only flag if enabled (ensures maker fee, never taker)
+        if post_only:
+            order_data["oflags"] = "post"
         
         response = self._query_private("AddOrder", order_data)
         result = OrderResult.from_api_response(response, is_validated=validate)
