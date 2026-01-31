@@ -37,11 +37,6 @@ def main() -> int:
         log_file="script.log",
     )
     
-    # DEBUG: Test child logger
-    test_child = logging.getLogger("src.daemon")
-    test_child.info("DEBUG: Child logger test from main.py")
-    logger.info("DEBUG: Parent logger test from main.py")
-    
     logger.info("=" * 70)
     logger.info("Kraken DCA Scheduler - Starting")
     logger.info("=" * 70)
