@@ -31,7 +31,7 @@ def main() -> int:
         return 1
     
     logger = setup_logger(
-        name="kraken-dca",
+        name="src",
         level=config.general.log_level,
         log_file="script.log",
     )

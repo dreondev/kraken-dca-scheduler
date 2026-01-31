@@ -13,7 +13,7 @@ from typing import Optional
 
 
 def setup_logger(
-    name: str = "kraken-dca",
+    name: str = "src",
     level: str = "INFO",
     log_file: Optional[str] = None,
     max_bytes: int = 10 * 1024 * 1024,  # 10MB
@@ -24,8 +24,11 @@ def setup_logger(
     Creates a logger with console output and optional file output.
     Uses structured formatting for better readability.
     
+    Note: Uses "src" as default name so all src.* module loggers
+    inherit this configuration (src.daemon, src.scheduler, etc.)
+    
     Args:
-        name: Logger name (default: "kraken-dca")
+        name: Logger name (default: "src" for module inheritance)
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Path to log file. If None, only console logging.
         max_bytes: Maximum size of log file before rotation
@@ -161,7 +164,7 @@ def _create_file_handler(
     return handler
 
 
-def get_logger(name: str = "kraken-dca") -> logging.Logger:
+def get_logger(name: str = "src") -> logging.Logger:
     """Get existing logger instance.
     
     Use this to get the logger in other modules after setup_logger()
