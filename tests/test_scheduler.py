@@ -3,6 +3,12 @@
 import pytest
 from unittest.mock import Mock, patch
 from src.scheduler import DCAScheduler, DCAResult
+from src.scheduler_messages import (
+    build_success_message,
+    build_error_message,
+    build_insufficient_funds_message,
+    build_fatal_error_message,
+)
 from src.config import Config, GeneralConfig, KrakenConfig, TradeConfig
 from src.kraken.models import Ticker, OrderResult
 
@@ -305,10 +311,9 @@ class TestCalculations:
     def test_calculate_limit_price(self, scheduler):
         """Test limit price calculation."""
         # 0.5% discount: 77920.40 * (1 - 0.005) = 77531.498
-        # Python round() to 1 decimal: 77530.8 (banker's rounding)
         limit_price = scheduler._calculate_limit_price(77920.40)
         
-        assert limit_price == pytest.approx(77531.5, abs=1.0)  # Allow 1 EUR tolerance
+        assert limit_price == pytest.approx(77531.5, abs=1.0)
     
     def test_calculate_btc_volume(self, scheduler):
         """Test BTC volume calculation."""
@@ -322,7 +327,6 @@ class TestCalculations:
         scheduler._config.trade.discount_percent = 1.0
         
         # 1% discount: 77920.40 * (1 - 0.01) = 77141.196
-        # Rounded: 77141.2
         limit_price = scheduler._calculate_limit_price(77920.40)
         
         assert limit_price == 77141.2
@@ -377,16 +381,17 @@ class TestNotifications:
         # Execute - should complete despite notification failure
         result = scheduler.execute()
         
-        assert result.success is True  # Execution succeeded
+        assert result.success is True
         mock_notifier.send_success.assert_called_once()
 
 
 class TestMessageBuilding:
-    """Tests for message building methods."""
+    """Tests for message building functions."""
     
-    def test_build_success_message(self, scheduler, sample_ticker):
+    def test_build_success_message(self, config, sample_ticker):
         """Test success message building."""
-        message = scheduler._build_success_message(
+        message = build_success_message(
+            config=config,
             ticker=sample_ticker,
             balance_eur=1000.0,
             free_balance=100.0,
@@ -402,9 +407,10 @@ class TestMessageBuilding:
         assert "1.000,00 EUR" in message
         assert "100,00 EUR" in message
     
-    def test_build_error_message(self, scheduler, sample_ticker):
+    def test_build_error_message(self, config, sample_ticker):
         """Test error message building."""
-        message = scheduler._build_error_message(
+        message = build_error_message(
+            config=config,
             ticker=sample_ticker,
             balance_eur=1000.0,
             free_balance=100.0,
@@ -416,9 +422,10 @@ class TestMessageBuilding:
         assert "❌ Error: Test error" in message
         assert "20,00 EUR" in message
     
-    def test_build_insufficient_funds_message(self, scheduler, sample_ticker):
+    def test_build_insufficient_funds_message(self, config, sample_ticker):
         """Test insufficient funds message building."""
-        message = scheduler._build_insufficient_funds_message(
+        message = build_insufficient_funds_message(
+            config=config,
             ticker=sample_ticker,
             balance_eur=50.0,
             free_balance=10.0,
@@ -431,11 +438,10 @@ class TestMessageBuilding:
         assert "50,00 EUR" in message
         assert "10,00 EUR" in message
     
-    def test_build_insufficient_funds_message_with_buffer(
-        self, scheduler_with_buffer, sample_ticker
-    ):
+    def test_build_insufficient_funds_message_with_buffer(self, config_with_buffer, sample_ticker):
         """Test insufficient funds message includes buffer info."""
-        message = scheduler_with_buffer._build_insufficient_funds_message(
+        message = build_insufficient_funds_message(
+            config=config_with_buffer,
             ticker=sample_ticker,
             balance_eur=25.0,
             free_balance=25.0,
@@ -444,7 +450,14 @@ class TestMessageBuilding:
         )
         
         assert "⚠️ Insufficient funds" in message
-        assert "Buffer: 10,00 EUR" in message  # Shows buffer when > 0
+        assert "Buffer: 10,00 EUR" in message
+    
+    def test_build_fatal_error_message(self, config):
+        """Test fatal error message building."""
+        message = build_fatal_error_message(config, "Something went wrong")
+        
+        assert "❌ DCA execution failed" in message
+        assert "Something went wrong" in message
 
 
 class TestDCAResult:
