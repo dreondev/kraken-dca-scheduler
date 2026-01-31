@@ -54,12 +54,16 @@ trade:
   min_free_balance: 10.0
   
   # Post-only orders (recommended: true)
-  # true  = Order will only be placed as maker (lower fees: 0.16%)
+  # true  = Order will only be placed as maker (lower fees: 0.25%)
   #         If order would immediately match, it will be rejected
-  # false = Order may be taker if it matches immediately (higher fees: 0.26%)
-  # 
+  # false = Order may be taker if it matches immediately (higher fees: 0.40%)
+  #
+  # Fee savings: 0.15% per trade (e.g., 0.075 EUR on 50 EUR trade)
+  #
   # With a discount_percent > 0, orders typically won't match immediately anyway,
   # but post_only provides extra safety to ensure you always pay maker fees.
+  #
+  # See: https://www.kraken.com/features/fee-schedule
   post_only: true
 
 # -----------------------------------------------------------------------------
